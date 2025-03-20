@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Financial Report App</title>
+</head>
+<body>
+  <h1>Financial Report App</h1>
+  
+  <div>
+    <button id="uploadBankBtn">Upload bank statement</button>
+    <input type="file" id="bankFileInput" accept=".csv" style="display:none;">
+    <span id="bankFileName"></span>
+  </div>
+  
+  <div>
+    <button id="uploadStripeBtn">Upload stripe data</button>
+    <input type="file" id="stripeFileInput" accept=".csv" style="display:none;">
+    <span id="stripeFileName"></span>
+  </div>
+  
+  <div>
+    <label for="monthInput">Report Month:</label>
+    <input type="text" id="monthInput" placeholder="Enter month (e.g. January)">
+  </div>
+  
+  <div>
+    <button id="downloadBankBtn" disabled>Download Bank CSV</button>
+  </div>
+
+  <div>
+    <button id="downloadStripeBtn" disabled>Download Stripe CSV</button>
+  </div>
+  
+  <script src="index.js"></script>
+</body>
+</html>
