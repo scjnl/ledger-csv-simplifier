@@ -1,6 +1,6 @@
 let bankCSV = "";
 let stripeCSV = "";
-
+//
 function getNextLetter(str) {
   let carry = 1;
   // Convert the string into an array of characters for easier manipulation.
