@@ -1,11 +1,39 @@
 let bankCSV = "";
 let stripeCSV = "";
 
+function getNextLetter(str) {
+  let carry = 1;
+  // Convert the string into an array of characters for easier manipulation.
+  const letters = str.split('');
+
+  // Process the array from right to left.
+  for (let i = letters.length - 1; i >= 0; i--) {
+    if (carry === 0) break;
+    const charCode = letters[i].charCodeAt(0);
+    if (charCode === 90) { // 'Z'
+      letters[i] = 'A';
+      carry = 1;
+    } else {
+      letters[i] = String.fromCharCode(charCode + 1);
+      carry = 0;
+    }
+  }
+
+  // If we still have a carry after processing all digits,
+  // it means we had a string of all Z's. Prepend an 'A'.
+  if (carry === 1) {
+    letters.unshift('A');
+  }
+
+  return letters.join('');
+}
+
 // Function to check if both CSVs and the month are provided
 function updateDownloadButtonState() {
   const month = document.getElementById('monthInput').value.trim();
   const downloadBankBtn = document.getElementById('downloadBankBtn');
   const downloadStripeBtn = document.getElementById('downloadStripeBtn');
+  const downloadCombinedFinalizedBtn = document.getElementById('downloadCombinedFinalizedBtn');
   
   if (bankCSV && month !== "") {
     downloadBankBtn.disabled = false;
@@ -17,6 +45,12 @@ function updateDownloadButtonState() {
     downloadStripeBtn.disabled = false;
   } else {
     downloadStripeBtn.disabled = true;
+  }
+
+    if (stripeCSV && bankCSV && month !== "") {
+    downloadCombinedFinalizedBtn.disabled = false;
+  } else {
+    downloadCombinedFinalizedBtn.disabled = true;
   }
 }
 
@@ -101,6 +135,46 @@ document.getElementById('downloadStripeBtn').addEventListener('click', () => {
   document.body.removeChild(link);
 });
 
+document.getElementById('downloadCombinedFinalizedBtn').addEventListener('click', () => {
+  const month = document.getElementById('monthInput').value.trim();
+  const modifiedStripeCSV = modifyStripeStatement(stripeCSV);
+  const modifiedBankCSV = modifyBankStatement(bankCSV);
+  const combinedAndFinalizedCSV = combineAndFinalize(modifiedStripeCSV, modifiedBankCSV);
+  
+  // Create a blob from the CSV string
+  const blob = new Blob([combinedAndFinalizedCSV], { type: 'text/csv;charset=utf-8;' });
+  
+  // Create a temporary download link and trigger it
+  const link = document.createElement("a");
+  const url = URL.createObjectURL(blob);
+  link.setAttribute("href", url);
+  link.setAttribute("download", month + "-final.csv");
+  link.style.visibility = 'hidden';
+  
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+});
+
+function combineAndFinalize(stripeCSV, bankCSV) {
+  const combinedCSV = stripeCSV + '\n' + bankCSV;
+
+  const modifyingFunctions = [
+    addBankStatementIDToStripeLineItems,
+    updateColumnDFromColumnF,
+    setColumnRFromColumnE,
+    setColumnSFromColumnE,
+  ];
+
+  let result = combinedCSV;
+
+  modifyingFunctions.forEach(func => {
+    result = func(result);
+  })
+
+  return result;
+}
+
 function modifyBankStatement(csvString) {
   const modifyingFunctions = [
     removeEmptyRows,
@@ -114,7 +188,7 @@ function modifyBankStatement(csvString) {
     copyColumnMToK,
     fillColumnKFromL,
     addEmptyColumnsAtEnd,
-    addColumnHeaders,
+    addBankStatementIDs,
     // addFormattedDateColumn,
     // addMonthYearAtEnd,
   ];
@@ -162,6 +236,199 @@ function modifyStripeStatement(csvString) {
 }
 
 //csv modification functions
+function setColumnSFromColumnE(csvString) {
+    const rows = csvString.split("\n").map(row => row.split(","));
+
+    const monthMap = {
+        Jan: "January", Feb: "February", Mar: "March", Apr: "April",
+        May: "May", Jun: "June", Jul: "July", Aug: "August",
+        Sep: "September", Oct: "October", Nov: "November", Dec: "December"
+    };
+
+    for (let i = 1; i < rows.length; i++) { // Skip header
+        const eVal = rows[i][4]; // Column E (index 4), format: DD-MMM-YYYY
+        const [day, monthAbbr, year] = eVal.split("-");
+        const fullMonth = monthMap[monthAbbr];
+        if (fullMonth && year) {
+            rows[i][18] = `${fullMonth} ${year}`; // Set Column S (index 18)
+        }
+    }
+
+    return rows.map(row => row.join(",")).join("\n");
+}
+
+function setColumnRFromColumnE(csvString) {
+    const rows = csvString.split("\n").map(row => row.split(","));
+
+    const monthMap = {
+        Jan: "01", Feb: "02", Mar: "03", Apr: "04",
+        May: "05", Jun: "06", Jul: "07", Aug: "08",
+        Sep: "09", Oct: "10", Nov: "11", Dec: "12"
+    };
+
+    for (let i = 1; i < rows.length; i++) { // Skip header row
+        const eVal = rows[i][4]; // Column E (index 4), expected format: DD-MMM-YYYY
+        const [day, monthAbbr, year] = eVal.split("-");
+        const month = monthMap[monthAbbr];
+        if (day && month && year) {
+            const formatted = `${year}-${month}-${day.padStart(2, "0")}`;
+            rows[i][17] = formatted; // Set Column R (index 17)
+        }
+    }
+
+    return rows.map(row => row.join(",")).join("\n");
+}
+
+function updateColumnDFromColumnF(csvString) {
+    const rows = csvString.split("\n").map(row => row.split(","));
+
+    const monthMap = {
+        Jan: "January", Feb: "February", Mar: "March", Apr: "April",
+        May: "May", Jun: "June", Jul: "July", Aug: "August",
+        Sep: "September", Oct: "October", Nov: "November", Dec: "December"
+    };
+
+    for (let i = 1; i < rows.length; i++) { // Skip header row
+        const fVal = rows[i][5]; // Column F (index 5)
+        if (fVal && fVal.trim() !== "") {
+            const parts = fVal.split("-"); // Expect format: DD-MMM-YYYY-A
+            if (parts.length >= 3) {
+                const monthAbbr = parts[1];
+                const year = parts[2];
+                const fullMonth = monthMap[monthAbbr];
+                if (fullMonth) {
+                    rows[i][3] = `${fullMonth} ${year}`; // Set Column D (index 3)
+                }
+            }
+        }
+    }
+
+    return rows.map(row => row.join(",")).join("\n");
+}
+
+function addBankStatementIDs(csvString) {
+    const rows = csvString.split("\n").map(row => row.split(","));
+
+    for (let i = rows.length-1; i >= 0; i--) {
+        let date = rows[i][4]; // Column O (15th column, index 14)
+        let bankStatementID;
+
+        const previousIDLettersMatch = (rows[i + 1] && rows[i + 1][5] && rows[i + 1][5].match(/\d\d\d\d-([A-z]+)$/)) || '';
+        if (rows[i + 1] && rows[i + 1][4] && (rows[i + 1][4] === rows[i][4]) && previousIDLettersMatch[1]) {
+          const nextLetter = getNextLetter(previousIDLettersMatch[1]);
+          rows[i][5] = date + '-' + nextLetter;
+        } else {
+          rows[i][5] = date + '-' + 'A';
+        }
+    }
+
+    return rows.map(row => row.join(",")).join("\n");
+}
+
+function strip(number) {
+    return Number(parseFloat(number).toPrecision(12));
+}
+
+function findBankStripeDepositStripeLineItems (bankStringDepositTotal, stripeLineItems, sLIRowIndex) {
+  let bankStripeDepositStripeLineItemIDs = [];
+
+  let tempSLIRowIndex = sLIRowIndex
+  let stripeOffsetErrorIndex = null;
+  let offSetAmount = null;
+
+  while (bankStripeDepositStripeLineItemIDs.length === 0 && tempSLIRowIndex <= stripeLineItems.length) {
+    let sLISum = 0;
+
+    let lIndex = tempSLIRowIndex;
+    while (sLISum < bankStringDepositTotal && strip(sLISum) !== strip(bankStringDepositTotal)) {
+      sLISum += Number(stripeLineItems[lIndex][10]);
+      sLISum = strip(sLISum);
+
+      if (sLISum === (bankStringDepositTotal + 0.8) || sLISum === (bankStringDepositTotal + 0.4)) {
+        if (stripeOffsetErrorIndex !== null) {
+          offSetAmount = strip(bankStringDepositTotal - sLISum)
+          sLISum = bankStringDepositTotal;
+          stripeOffsetErrorIndex = null;          
+        } else {
+          stripeOffsetErrorIndex = lIndex;
+        }
+      }
+
+      bankStripeDepositStripeLineItemIDs.push(stripeLineItems[lIndex][7]);
+
+      if ((lIndex + 1 === stripeLineItems.length) && stripeOffsetErrorIndex !== null) {
+        lIndex = sLIRowIndex;
+        sLISum = 0;
+        bankStripeDepositStripeLineItemIDs = [];
+      } else {
+        lIndex++;
+      }
+    }
+
+    if (strip(sLISum) === strip(bankStringDepositTotal)) {
+      sLISum = bankStringDepositTotal;
+    }
+
+
+    if (sLISum !== bankStringDepositTotal) {
+      bankStripeDepositStripeLineItemIDs = [];
+      tempSLIRowIndex += 1;
+    } else {
+      tempSLIRowIndex = lIndex;
+      break;
+    }
+  }
+
+  return { bankStripeDepositStripeLineItemIDs, newSLIRowIndex: tempSLIRowIndex, offSetAmount };
+}
+
+function addBankStatementIDToStripeLineItems(csvString) {
+    const rows = csvString.split("\n").map(row => row.split(","));
+
+    const stripeLineItems = rows.filter(row => row[7] && row[7].match(/^ch/));
+
+    const bankStripeDepositRows = rows.filter(row => row[5] && row[5].match(/\d\d\d\d/) && row[9] && row[9].match('Direct Deposit STRIPE'));
+
+    let sLIRowIndex = 0;
+    let offSetAmounts = [];
+
+    bankStripeDepositRows.forEach(bsdr => {
+      let bsd = Number(bsdr[10]);
+      let { bankStripeDepositStripeLineItemIDs, newSLIRowIndex, offSetAmount } = findBankStripeDepositStripeLineItems(bsd, stripeLineItems, sLIRowIndex);
+
+      if (offSetAmount) {
+        offSetAmounts.push({ amount: offSetAmount, id: bsdr[5] })
+      }
+
+      rows.forEach((row, i) => {
+        if (bankStripeDepositStripeLineItemIDs.includes(row[7])) {
+          rows[i][5] = bsdr[5]
+        }
+      })
+
+      sLIRowIndex = newSLIRowIndex;
+    });
+
+    const newOffSetRows = offSetAmounts.map(osa => {
+      const baseRow = bankStripeDepositRows.find(r => r[5] === osa.id);
+      const newRow = [...baseRow];
+      newRow[6] = '';
+      newRow[7] = '';
+      newRow[8] = '';
+      newRow[9] = 'Stripe Expense';
+      newRow[10] = osa.amount;
+      newRow[11] = '';
+      newRow[12] = osa.amount;
+      newRow[14] = 'Operations';
+      newRow[15] = 'Financial Services';
+      newRow[16] = 'SJC';
+      return newRow;
+    })
+
+    const result = [...rows, ...newOffSetRows];
+    return result.map(row => row.join(",")).join("\n");
+}
+
 function clearColumnsButKeepHeaders(csvString) {
     const rows = csvString.split("\n").map(row => row.split(","));
 
