@@ -180,6 +180,8 @@ function modifyBankStatement(csvString) {
     removeEmptyRows,
     removeFirstColumn,
     removeLastColumn,
+    sortDatesDescendingByColumn,
+    removeRowsFromLastMonth,
     addEmptyColumnsAtStart,
     addYearColumn,
     addMonthYearColumn,
@@ -236,6 +238,30 @@ function modifyStripeStatement(csvString) {
 }
 
 //csv modification functions
+function removeRowsFromLastMonth(csvString) {
+  const rows = csvString.split("\n").map(row => row.split(","));
+
+  const [mostRecent] = rows[0];
+  const [day, month, year] = mostRecent.split('-');
+
+  const filtered = rows.filter(row => {
+    return row[0].split('-')[1] === month && row[0].split('-')[2];
+  });
+
+  return filtered.map(row => row.join(",")).join("\n");
+}
+
+function sortDatesDescendingByColumn(csvString) {
+  const rows = csvString.split("\n").map(row => row.split(","));
+
+  const sorted = [...rows].sort((a, b) => {
+    const parseDate = (str) => new Date(str.replace(/-/g, ' '));
+    return parseDate(b[0]) - parseDate(a[0]);
+  });
+
+  return sorted.map(row => row.join(",")).join("\n");
+}
+
 function setColumnSFromColumnE(csvString) {
     const rows = csvString.split("\n").map(row => row.split(","));
 
@@ -350,7 +376,7 @@ function findBankStripeDepositStripeLineItems (bankStringDepositTotal, stripeLin
           sLISum = bankStringDepositTotal;
           stripeOffsetErrorIndex = null;          
         } else {
-          stripeOffsetErrorIndex = lIndex;
+          stripeOffsetErrorIndex = lIndex + '';
         }
       }
 
@@ -358,6 +384,7 @@ function findBankStripeDepositStripeLineItems (bankStringDepositTotal, stripeLin
 
       if ((lIndex + 1 === stripeLineItems.length) && stripeOffsetErrorIndex !== null) {
         lIndex = sLIRowIndex;
+        tempSLIRowIndex = sLIRowIndex;
         sLISum = 0;
         bankStripeDepositStripeLineItemIDs = [];
       } else {
