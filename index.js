@@ -28,33 +28,6 @@ function getNextLetter(str) {
   return letters.join('');
 }
 
-function getNextLetter(str) {
-  let carry = 1;
-  // Convert the string into an array of characters for easier manipulation.
-  const letters = str.split('');
-
-  // Process the array from right to left.
-  for (let i = letters.length - 1; i >= 0; i--) {
-    if (carry === 0) break;
-    const charCode = letters[i].charCodeAt(0);
-    if (charCode === 90) { // 'Z'
-      letters[i] = 'A';
-      carry = 1;
-    } else {
-      letters[i] = String.fromCharCode(charCode + 1);
-      carry = 0;
-    }
-  }
-
-  // If we still have a carry after processing all digits,
-  // it means we had a string of all Z's. Prepend an 'A'.
-  if (carry === 1) {
-    letters.unshift('A');
-  }
-
-  return letters.join('');
-}
-
 // Function to check if both CSVs and the month are provided
 function updateDownloadButtonState() {
   const month = document.getElementById('monthInput').value.trim();
