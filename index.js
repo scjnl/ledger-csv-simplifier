@@ -98,7 +98,6 @@ document.getElementById('monthInput').addEventListener('input', updateDownloadBu
 // Download the combined CSV file
 document.getElementById('downloadBankBtn').addEventListener('click', () => {
   const month = document.getElementById('monthInput').value.trim();
-  console.log('stripeCSV', stripeCSV)
   const modifiedCSV = modifyBankStatement(bankCSV);
   
   // Create a blob from the CSV string
@@ -206,6 +205,10 @@ function modifyBankStatement(csvString) {
 
 function modifyStripeStatement(csvString) {
   const modifyingFunctions = [
+    (csvString) => {
+      const rows = csvString.split("\n").map(row => row.split(","));
+      return rows.map(row => row.map(e => e.replace(/\"/g,'')).join(",")).join("\n");
+    },
     removeEmptyRows,
     removeRowsWhereFIsFalse,
     insertDifferenceColumn,
@@ -412,7 +415,7 @@ function findBankStripeDepositStripeLineItems (bankStringDepositTotal, stripeLin
 function addBankStatementIDToStripeLineItems(csvString) {
     const rows = csvString.split("\n").map(row => row.split(","));
 
-    const stripeLineItems = rows.filter(row => row[7] && row[7].match(/^ch/));
+    const stripeLineItems = rows.filter(row => row[7] && row[7].match(/ch_/));
 
     const bankStripeDepositRows = rows.filter(row => row[5] && row[5].match(/\d\d\d\d/) && row[9] && row[9].match('Direct Deposit STRIPE'));
 
@@ -689,9 +692,11 @@ function insertDifferenceColumn(csvString) {
     
     // Insert the new column in each row
     for (let i = 0; i < rows.length; i++) {
-        let colG = parseFloat(rows[i][6]) || 0; // Column G (7th column, index 6)
-        let colL = parseFloat(rows[i][11]) || 0; // Column L (12th column, index 11)
-        let difference = colG - colL;
+        let colGMatch = rows[i][6].match(/[0-9\.]+/) || {};
+        let colLMatch = rows[i][11].match(/[0-9\.]+/) || {};
+        let colGParsed = parseFloat(colGMatch[0]) || 0; // Column G (7th column, index 6)
+        let colLParsed = parseFloat(colLMatch[0]) || 0; // Column L (12th column, index 11)
+        let difference = colGParsed - colLParsed;
         
         rows[i].splice(12, 0, difference.toString()); // Insert difference at index 12 (after L)
     }
