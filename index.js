@@ -373,7 +373,7 @@ function findBankStripeDepositStripeLineItems (bankStringDepositTotal, stripeLin
       sLISum += Number(stripeLineItems[lIndex][10]);
       sLISum = strip(sLISum);
 
-      if (sLISum === (bankStringDepositTotal + 0.8) || sLISum === (bankStringDepositTotal + 0.4)) {
+      if (sLISum === (bankStringDepositTotal + 0.8) || sLISum === (bankStringDepositTotal + 0.4) || sLISum === (bankStringDepositTotal + 0.41) || sLISum === (bankStringDepositTotal + 0.39) || sLISum === (bankStringDepositTotal + 0.81) || sLISum === (bankStringDepositTotal + 0.79)) {
         if (stripeOffsetErrorIndex !== null) {
           offSetAmount = strip(bankStringDepositTotal - sLISum)
           sLISum = bankStringDepositTotal;
